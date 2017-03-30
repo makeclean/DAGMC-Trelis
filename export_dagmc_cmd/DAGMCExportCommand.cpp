@@ -31,6 +31,11 @@
   return false;                                                         \
   }
 
+#define SEND_MESSAGE(A) { \
+  message << (A) << std::endl; \
+  CubitInterface::get_cubit_message_handler()->print_message(message.str().c_str()); \
+  }
+
 #define CHK_MB_ERR_RET_MB(A,B)  if (moab::MB_SUCCESS != (B)) { \
   message << (A) << (B) << std::endl;                                   \
   return rval;                                                         \
@@ -735,8 +740,10 @@ moab::ErrorCode DAGMCExportCommand::create_surface_facets(refentity_handle_map& 
     data.clear();
     s = face->get_graphics(data, norm_tol, faceting_tol, len_tol);
 
-    if (CUBIT_SUCCESS != s)
+    if (CUBIT_SUCCESS != s) {
+      SEND_MESSAGE("ERROR: Failed to get facets for surface "+std::to_string(ci->first->id()));
       return moab::MB_FAILURE;
+    }
 
     std::vector<CubitVector> points = data.point_list();
 
@@ -779,8 +786,11 @@ moab::ErrorCode DAGMCExportCommand::create_surface_facets(refentity_handle_map& 
       // Return vertex handle to verts to fill in all remaining facet
       // vertices
       rval = mdbImpl->create_vertex(coords, verts[i]);
-      if (moab::MB_SUCCESS != rval)
-        return rval;
+      if (moab::MB_SUCCESS != rval) {
+	message << "ERROR: Whilst faceting surface " << std::to_string(ci->first->id());
+	message << " we were unable to create vertices " << std::endl;
+	return rval;
+      }
     }
 
     std::vector<int> facet_list = data.facet_list();
@@ -801,7 +811,7 @@ moab::ErrorCode DAGMCExportCommand::create_surface_facets(refentity_handle_map& 
       corners.resize(num_verts);
       for (int j = 1; j <= num_verts; ++j) {
         if (facet_list[i+j] >= (int)verts.size()) {
-          message << "ERROR: Invalid facet data for surface " << face->id() << std::endl;
+          message << "ERROR: Invalid facet data for surface " << std::to_string(face->id()) << std::endl;
           return moab::MB_FAILURE;
         }
         corners[j - 1] = verts[facet_list[i+j]];
@@ -810,7 +820,7 @@ moab::ErrorCode DAGMCExportCommand::create_surface_facets(refentity_handle_map& 
       if (num_verts == 3)
         type = moab::MBTRI;
       else {
-        message << "Warning: non-triangle facet in surface " << face->id() << std::endl;
+        message << "Warning: non-triangle facet in surface " << std::to_string(face->id()) << std::endl;
         message << "  entity has " << num_verts << " edges" << std::endl;
         if (num_verts == 4)
           type = moab::MBQUAD;
@@ -823,19 +833,27 @@ moab::ErrorCode DAGMCExportCommand::create_surface_facets(refentity_handle_map& 
 
       moab::EntityHandle h;
       rval = mdbImpl->create_element(type, &corners[0], corners.size(), h);
-      if (moab::MB_SUCCESS != rval)
-        return moab::MB_FAILURE;
-
+      if (moab::MB_SUCCESS != rval) {
+	message << "ERROR: Whilst faceting surface " << std::to_string(face->id());
+	message << " We failed to create a moab mesh element " << std::endl;
+	return moab::MB_FAILURE;
+      }
       facets.insert(h);
     }
 
-    // Add vertices and facets to surface set
+    // Add vertices and facets to surface set”
     rval = mdbImpl->add_entities(ci->second, &verts[0], verts.size());
-    if (moab::MB_SUCCESS != rval)
+    if (moab::MB_SUCCESS != rval) {
+      message << "ERROR: Whilst faceting surface " << std::to_string(ci->first->id());
+      message << " We failed to add vertices to MOAB" << std::endl;
       return moab::MB_FAILURE;
+    }
     rval = mdbImpl->add_entities(ci->second, facets);
-    if (moab::MB_SUCCESS != rval)
+    if (moab::MB_SUCCESS != rval) {
+      message << "ERROR: Whilst faceting surface " << std::to_string(ci->first->id());
+      message << " We failed to add facets to MOAB" << std::endl; 
       return moab::MB_FAILURE;
+    }
   }
 
   return moab::MB_SUCCESS;
