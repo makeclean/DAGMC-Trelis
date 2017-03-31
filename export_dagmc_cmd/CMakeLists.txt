@@ -20,17 +20,29 @@ endif()
 find_package(Cubit REQUIRED CONFIG)
 include_directories(${CUBIT_INCLUDE_DIRS})
 
+#moab
 find_package(MOAB REQUIRED)
+# this is needed as moab builds both static and shared libries
+# with autommatic indication of which to use from the cmake
+find_library(libmoab libMOAB.a ${MOAB_LIBRARY_DIRS})
 include_directories(${MOAB_INCLUDE_DIRS})
 
-include_directories("${DAGMC_DIR}/../include/")
+# dagmc
+include_directories("${DAGMC_DIR}/include/")
+find_library(makeWatertight libMakeWatertight.a ${DAGMC_DIR}/lib/)
+
+# set static build for libraries
+set(HDF5_USE_STATIC_LIBRARIES ON)
+find_package(HDF5 REQUIRED)
 
 set(SRC
     MyPlugin.cpp
     MyPlugin.hpp
     DAGMCExportCommand.cpp
     DAGMCExportCommand.hpp)
-#link_directories(${DAGMC_DIR})
+# make the plugin library
 add_library(dagmc_export_plugin SHARED ${SRC})
-#target_link_libraries(dagmc_export_plugin cubiti cubit_util cubit_geom z /Users/davisa/opt/dagmc_dev/lib/libmakeWatertight.dylib /Users/davisa/opt/moab/lib/libMOAB.a /usr/local/opt/hdf5/lib/libhdf5.a )
-target_link_libraries(dagmc_export_plugin cubiti cubit_util cubit_geom z /Users/davisa/opt/dagmc_dev/lib/libmakeWatertight.dylib /Users/davisa/opt/moab/lib/libMOAB.a /usr/local/opt/hdf5/lib/libhdf5.a /usr/local/opt/hdf5/lib/libhdf5_hl.a /usr/local/opt/hdf5/lib/libhdf5_hl_cpp.a /usr/local/opt/szip/lib/libsz.a)
+# set the libraries
+target_link_libraries(dagmc_export_plugin cubiti cubit_util cubit_geom z
+                      ${HDF5_LIBRARIES} ${makeWatertight} ${libmoab} )
+
