@@ -19,8 +19,11 @@ endif()
 find_package(Cubit REQUIRED CONFIG)
 include_directories(${CUBIT_INCLUDE_DIRS})
 
+set(HDF5_USE_STATIC_LIBRARIES ON)
+find_package(HDF5 REQUIRED)
 find_package(MOAB REQUIRED)
 include_directories(${MOAB_INCLUDE_DIRS})
+
 
 set(SRC
     MyPlugin.cpp
@@ -28,5 +31,5 @@ set(SRC
     DAGMCExportCommand.cpp
     DAGMCExportCommand.hpp)
 
-add_library(dagmc_export_plugin MODULE ${SRC})
-target_link_libraries(dagmc_export_plugin cubiti cubit_util cubit_geom ${MOAB_LIBRARIES})
+add_library(dagmc_export_plugin SHARED ${SRC})
+target_link_libraries(dagmc_export_plugin cubiti cubit_util cubit_geom /Users/adavis/opt/moab/bld_2/lib/libMOAB.a ${HDF5_LIBRARIES})
